@@ -29,6 +29,7 @@ const startupMessage = `[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Got request at " + time.Now().Format(time.UnixDate))
 		fmt.Fprintf(w, "Hello! you've requested %s\n", r.URL.Path)
 	})
 
