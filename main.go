@@ -29,6 +29,7 @@ const startupMessage = `[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Got request!")
 		fmt.Fprintf(w, "Hello! you've requested %s\n", r.URL.Path)
 	})
 
@@ -85,6 +86,7 @@ func main() {
 		port = "80"
 	}
 
+	/*
 	for _, encodedRoute := range strings.Split(os.Getenv("ROUTES"), ",") {
 		if encodedRoute == "" {
 			continue
@@ -94,7 +96,7 @@ func main() {
 		http.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, body)
 		})
-	}
+	}*/
 
 	bindAddr := fmt.Sprintf(":%s", port)
 	lines := strings.Split(startupMessage, "\n")
