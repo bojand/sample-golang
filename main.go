@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -81,22 +82,53 @@ func main() {
 		fmt.Fprintf(w, requestID.String())
 	})
 
+	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "method: %s\n", r.Method)
+		fmt.Printf("method: %s\n", r.Method)
+
+		fmt.Fprintf(w, "path: %s\n", r.URL.Path)
+		fmt.Printf("path: %s\n", r.URL.Path)
+
+		keys, ok := r.URL.Query()["key"]
+		if ok && len(keys) > 0 {
+			fmt.Fprintf(w, r.Header.Get(keys[0]))
+			fmt.Printf(r.Header.Get(keys[0]))
+		}
+
+		headers := []string{}
+		for key, values := range r.Header {
+			headers = append(headers, fmt.Sprintf("%s=%s", key, strings.Join(values, ",")))
+		}
+
+		fmt.Fprintf(w, strings.Join(headers, "\n"))
+		fmt.Printf(strings.Join(headers, "\n"))
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Fprintf(w, "request read error:", err.Error())
+			fmt.Printf("request read error:", err.Error())
+		} else {
+			fmt.Fprintf(w, "body: %s\n", body)
+			fmt.Printf("body: %s\n", body)
+		}
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "80"
 	}
 
 	/*
-	for _, encodedRoute := range strings.Split(os.Getenv("ROUTES"), ",") {
-		if encodedRoute == "" {
-			continue
-		}
-		pathAndBody := strings.SplitN(encodedRoute, "=", 2)
-		path, body := pathAndBody[0], pathAndBody[1]
-		http.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, body)
-		})
-	}*/
+		for _, encodedRoute := range strings.Split(os.Getenv("ROUTES"), ",") {
+			if encodedRoute == "" {
+				continue
+			}
+			pathAndBody := strings.SplitN(encodedRoute, "=", 2)
+			path, body := pathAndBody[0], pathAndBody[1]
+			http.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, body)
+			})
+		}*/
 
 	bindAddr := fmt.Sprintf(":%s", port)
 	lines := strings.Split(startupMessage, "\n")
