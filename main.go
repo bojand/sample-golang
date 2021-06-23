@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid"
 )
@@ -29,6 +31,8 @@ const startupMessage = `[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [
 [0m`
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Got request!")
 		fmt.Fprintf(w, "Hello! you've requested %s\n", r.URL.Path)
@@ -73,7 +77,20 @@ func main() {
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		codeParams, ok := r.URL.Query()["code"]
 		if ok && len(codeParams) > 0 {
-			statusCode, _ := strconv.Atoi(codeParams[0])
+			var statusCode int
+			code := codeParams[0]
+			if code == "random" {
+				ri := rand.Intn(11)
+				if ri <= 5 {
+					statusCode = 200
+				} else if ri <= 8 {
+					statusCode = 400
+				} else {
+					statusCode = 500
+				}
+			} else {
+				statusCode, _ = strconv.Atoi(codeParams[0])
+			}
 			if statusCode >= 200 && statusCode < 600 {
 				w.WriteHeader(statusCode)
 			}
@@ -117,18 +134,6 @@ func main() {
 	if port == "" {
 		port = "80"
 	}
-
-	/*
-		for _, encodedRoute := range strings.Split(os.Getenv("ROUTES"), ",") {
-			if encodedRoute == "" {
-				continue
-			}
-			pathAndBody := strings.SplitN(encodedRoute, "=", 2)
-			path, body := pathAndBody[0], pathAndBody[1]
-			http.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, body)
-			})
-		}*/
 
 	bindAddr := fmt.Sprintf(":%s", port)
 	lines := strings.Split(startupMessage, "\n")
