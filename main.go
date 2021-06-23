@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -32,6 +33,9 @@ const startupMessage = `[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
+
+	var mutex = &sync.Mutex{}
+	var randomStatus bool
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Got request!")
@@ -75,18 +79,39 @@ func main() {
 	})
 
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		randomParams, ok := r.URL.Query()["random"]
+		if ok && len(randomParams) > 0 {
+			rp := randomParams[0]
+			if rp == "off" {
+				mutex.Lock()
+				randomStatus = false
+				mutex.Unlock()
+			} else if rp == "on" {
+				mutex.Lock()
+				randomStatus = true
+				mutex.Unlock()
+			}
+		}
+
 		codeParams, ok := r.URL.Query()["code"]
 		if ok && len(codeParams) > 0 {
 			var statusCode int
 			code := codeParams[0]
 			if code == "random" {
-				ri := rand.Intn(11)
-				if ri <= 5 {
-					statusCode = 200
-				} else if ri <= 8 {
-					statusCode = 400
-				} else {
-					statusCode = 500
+				allowRandom := false
+				mutex.Lock()
+				allowRandom = randomStatus
+				mutex.Unlock()
+
+				if allowRandom {
+					ri := rand.Intn(11)
+					if ri <= 5 {
+						statusCode = 200
+					} else if ri <= 8 {
+						statusCode = 400
+					} else {
+						statusCode = 500
+					}
 				}
 			} else {
 				statusCode, _ = strconv.Atoi(codeParams[0])
