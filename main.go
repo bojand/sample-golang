@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -31,6 +32,33 @@ const startupMessage = `[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [
 [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;56;48;5;51m�[38;5;141;48;5;87m�[38;5;123;48;5;231m�[38;5;31;48;5;195m [38;5;57;48;5;73m�[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;51;48;5;51m [38;5;56;48;5;51m�[38;5;81;48;5;195m�[38;5;55;48;5;45m [38;5;99;48;5;51m�[38;5;177;48;5;38m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;123;48;5;255m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;231;48;5;231m�[38;5;51;48;5;255m�[38;5;168;48;5;241m�[38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [38;5;1;48;5;16m [0m
 [0m`
 
+const (
+	HeaderXForwardedFor = "X-Forwarded-For"
+	HeaderXRealIP       = "X-Real-IP"
+)
+
+func realIP(r *http.Request) string {
+	if ip := r.Header.Get(HeaderXForwardedFor); ip != "" {
+		i := strings.IndexAny(ip, ",")
+		if i > 0 {
+			return strings.TrimSpace(ip[:i])
+		}
+		return ip
+	}
+	if ip := r.Header.Get(HeaderXRealIP); ip != "" {
+		return ip
+	}
+	ra, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return ra
+}
+
+func logRequest(r *http.Request) {
+	uri := r.RequestURI
+	method := r.Method
+	remoteAddr := realIP(r)
+	fmt.Println("Got request!", method, uri, "from", remoteAddr)
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -38,7 +66,7 @@ func main() {
 	var randomStatus bool
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Got request!")
+		logRequest(r)
 		fmt.Fprintf(w, "Hello! you've requested %s\n", r.URL.Path)
 	})
 
@@ -53,6 +81,8 @@ func main() {
 	})
 
 	http.HandleFunc("/headers", func(w http.ResponseWriter, r *http.Request) {
+		logRequest(r)
+
 		keys, ok := r.URL.Query()["key"]
 		if ok && len(keys) > 0 {
 			fmt.Fprintf(w, r.Header.Get(keys[0]))
@@ -66,6 +96,8 @@ func main() {
 	})
 
 	http.HandleFunc("/env", func(w http.ResponseWriter, r *http.Request) {
+		logRequest(r)
+
 		keys, ok := r.URL.Query()["key"]
 		if ok && len(keys) > 0 {
 			fmt.Fprintf(w, os.Getenv(keys[0]))
@@ -79,6 +111,8 @@ func main() {
 	})
 
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		logRequest(r)
+
 		randomParams, ok := r.URL.Query()["random"]
 		if ok && len(randomParams) > 0 {
 			rp := randomParams[0]
@@ -125,6 +159,8 @@ func main() {
 	})
 
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		logRequest(r)
+
 		fmt.Fprintf(w, "method: %s\n", r.Method)
 		fmt.Printf("method: %s\n", r.Method)
 
